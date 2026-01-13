@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Chakra+Petch:wght@300;500;700;800&family=Sarabun:wght@300;400;600;800&display=swap" rel="stylesheet">
 
     <style>
-        /* --- THEME: STABLE & VIBRANT (โค้ดเดิมของนายท่าน) --- */
+        /* --- THEME: STABLE & VIBRANT (Layout เดิมที่ดี + เพิ่มการรองรับ Auto-Scale) --- */
         body { 
             font-family: 'Sarabun', sans-serif; 
             background-color: #FFEB3B; 
@@ -21,8 +21,13 @@
             background-position: 0 0, 15px 15px;
             color: #333; 
             margin: 0; padding: 20px; 
-            display: flex; gap: 20px; height: 100vh; box-sizing: border-box; overflow: hidden; 
+            display: flex; gap: 20px; 
+            /* CSS สำหรับ auto-scale */
+            width: 100vw; height: 100vh;
+            box-sizing: border-box; overflow: hidden; 
             position: relative;
+            transform-origin: top left; /* จุดหมุนซ้ายบน */
+            transition: transform 0.2s ease-out; /* ให้การย่อลื่นไหล */
         }
 
         /* Header โรงเรียน */
@@ -179,7 +184,9 @@
         
         /* กล่องเก็บแรงจริงแบบนิ่งสนิท (Anti-Jitter v2) */
         .raw-force-container {
-            font-size: 1.8em; color: #fff; font-weight: 800; 
+            /* 🔥 แก้ไข: ลดขนาดฟอนต์ลงเล็กน้อย เพื่อป้องกันการตกขอบเมื่อเลขเยอะ 🔥 */
+            font-size: 1.15em; /* เดิม 1.3em หรือ 1.8em */
+            color: #fff; font-weight: 800; 
             margin-top: 10px; text-shadow: 2px 2px 0 #000; 
             font-family:'Chakra Petch'; line-height: 1;
             min-height: 45px; width: 100%;
@@ -216,13 +223,11 @@
 
         #fireworksCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
         
-        /* 🔥🔥🔥 ส่วนที่เพิ่มใหม่: Styles สำหรับ Modal ที่แสดงรายละเอียด 🔥🔥🔥 */
+        /* 🔥🔥🔥 Styles สำหรับ Modal (การ์ดข้อมูล) 🔥🔥🔥 */
         #imageModal { 
             display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
-
-        /* กล่องเนื้อหาใน Modal (ตกแต่งให้เข้าธีม) */
         .modal-content-box {
             background: #fff;
             border: 5px solid #000;
@@ -231,34 +236,21 @@
             text-align: center;
             position: relative;
             box-shadow: 10px 10px 0 #000;
-            max-width: 90%; /* กันล้นจอ */
-            width: 400px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            max-width: 90%; width: 400px;
+            display: flex; flex-direction: column; align-items: center;
             animation: popIn 0.3s ease-out;
         }
         @keyframes popIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;}}
 
-        /* รูปภาพใน Modal */
         #modalImg { 
-            width: 100%;
-            height: auto;
-            max-height: 300px; /* จำกัดความสูงไม่ให้ล้น */
-            object-fit: cover;
-            border: 3px solid #000;
-            border-radius: 15px;
-            margin-bottom: 15px;
-            background: #ddd;
+            width: 100%; height: auto; max-height: 300px;
+            object-fit: cover; border: 3px solid #000; border-radius: 15px; margin-bottom: 15px; background: #ddd;
         }
-
-        /* ข้อความต่างๆ ใน Modal */
         .modal-text-name { font-family: 'Bangers'; font-size: 2.5em; color: #000; line-height: 1; margin-bottom: 5px; }
         .modal-score-row { display: flex; align-items: baseline; gap: 10px; justify-content: center; }
         .modal-text-score { font-family: 'Chakra Petch'; font-size: 3.5em; font-weight: 800; color: #D50000; line-height: 1; text-shadow: 2px 2px 0 #000; }
         .modal-text-raw { font-family: 'Sarabun'; font-size: 1.2em; font-weight: 600; color: #555; }
 
-        /* ปุ่มปิด Modal */
         .btn-close-modal {
             position: absolute; top: -15px; right: -15px;
             background: #D50000; color: #fff; border: 3px solid #000;
@@ -267,7 +259,7 @@
             cursor: pointer; box-shadow: 3px 3px 0 #000;
         }
         .btn-close-modal:hover { transform: scale(1.1); background: #FF1744;}
-        /* 🔥🔥🔥 จบส่วนที่เพิ่มใหม่ 🔥🔥🔥 */
+        /* 🔥🔥🔥 จบ styles modal 🔥🔥🔥 */
 
 
         /* ของตกแต่งด้านล่าง (Comic Bursts) */
@@ -312,6 +304,7 @@
             </div>
         </div>
     </div>
+
     <div class="control-zone comic-box bg-pattern">
         <div class="bottom-deco deco-left"></div>
         <div class="bottom-deco deco-right"></div>
@@ -394,12 +387,26 @@
         let lastVideoTime = 0;
         let cameraCheckInterval = null;
 
+        // 🔥 ฟังก์ชัน Auto-Scale ย่อหน้าจออัตโนมัติ 🔥
+        function autoScaleUI() {
+            const baseWidth = 1366; const baseHeight = 768;
+            const scaleX = window.innerWidth / baseWidth;
+            const scaleY = window.innerHeight / baseHeight;
+            let scale = Math.min(scaleX, scaleY);
+            if (scale > 1) scale = 1;
+            document.body.style.transform = `scale(${scale})`;
+            document.body.style.width = `${100 / scale}vw`;
+            document.body.style.height = `${100 / scale}vh`;
+        }
+
         window.onload = function() {
             startCamera(); 
             loadData();
             setupFireworks();
             try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
             startCameraWatchdog(); 
+            // เรียกใช้ Auto-Scale
+            autoScaleUI(); window.addEventListener('resize', autoScaleUI);
         };
 
         function startCameraWatchdog() {
